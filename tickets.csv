@@ -1,1 +1,1 @@
-id,titulo,descricao,tipo,status,criado_por,imagem,created_at,updated_at,resolved_at,resolved_by
+id,titulo,descricao,tipo,imagem,status,created_at,updated_at,username

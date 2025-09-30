@@ -1,1 +1,1 @@
-id,nome_cliente,telefone,valor_solicitado,taxa_juros,data_emprestimo,data_pagamento,parcelas,valor_total,valor_pago,status,created_at,updated_at
+id,nome_cliente,valor_solicitado,valor_total,valor_pago,data_emprestimo,data_pagamento,status,taxa_juros,parcelas,telefone,tipo,created_at,updated_at,valor_total_planilha
