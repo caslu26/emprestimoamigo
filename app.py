@@ -1886,6 +1886,11 @@ def clients_management_page():
         if 'selected_clients' not in st.session_state:
             st.session_state.selected_clients = []
         
+        # Verificar se o DataFrame tem a coluna 'Cliente' e não está vazio
+        if 'Cliente' not in filtered_df.columns or filtered_df.empty:
+            st.warning("⚠️ Nenhum cliente encontrado ou dados inválidos.")
+            return
+        
         # Seção de seleção múltipla
         st.markdown("#### 📋 Seleção de Clientes")
         
@@ -1894,8 +1899,9 @@ def clients_management_page():
         
         with col1:
             if st.button("✅ Selecionar Todos", key="select_all_clients"):
-                st.session_state.selected_clients = filtered_df['Cliente'].tolist()
-                st.rerun()
+                if 'Cliente' in filtered_df.columns and not filtered_df.empty:
+                    st.session_state.selected_clients = filtered_df['Cliente'].tolist()
+                    st.rerun()
         
         with col2:
             if st.button("❌ Desmarcar Todos", key="deselect_all_clients"):
@@ -1904,10 +1910,11 @@ def clients_management_page():
         
         with col3:
             if st.button("🔄 Inverter Seleção", key="invert_selection"):
-                current_selected = set(st.session_state.selected_clients)
-                all_clients = set(filtered_df['Cliente'].tolist())
-                st.session_state.selected_clients = list(all_clients - current_selected)
-                st.rerun()
+                if 'Cliente' in filtered_df.columns and not filtered_df.empty:
+                    current_selected = set(st.session_state.selected_clients)
+                    all_clients = set(filtered_df['Cliente'].tolist())
+                    st.session_state.selected_clients = list(all_clients - current_selected)
+                    st.rerun()
         
         with col4:
             selected_count = len(st.session_state.selected_clients)
@@ -1916,31 +1923,35 @@ def clients_management_page():
         # Checkboxes para seleção individual
         st.markdown("**Selecione os clientes:**")
         
-        # Criar colunas para os checkboxes (3 colunas)
-        num_clients = len(filtered_df)
-        cols_per_row = 3
-        num_rows = (num_clients + cols_per_row - 1) // cols_per_row
-        
-        for row in range(num_rows):
-            cols = st.columns(cols_per_row)
-            for col_idx in range(cols_per_row):
-                client_idx = row * cols_per_row + col_idx
-                if client_idx < num_clients:
-                    with cols[col_idx]:
-                        client_name = filtered_df.iloc[client_idx]['Cliente']
-                        is_selected = client_name in st.session_state.selected_clients
-                        
-                        # Checkbox para seleção
-                        if st.checkbox(
-                            f"✅ {client_name[:20]}{'...' if len(client_name) > 20 else ''}", 
-                            value=is_selected,
-                            key=f"client_checkbox_{client_idx}"
-                        ):
-                            if client_name not in st.session_state.selected_clients:
-                                st.session_state.selected_clients.append(client_name)
-                        else:
-                            if client_name in st.session_state.selected_clients:
-                                st.session_state.selected_clients.remove(client_name)
+        # Verificar novamente se temos dados válidos
+        if 'Cliente' in filtered_df.columns and not filtered_df.empty:
+            # Criar colunas para os checkboxes (3 colunas)
+            num_clients = len(filtered_df)
+            cols_per_row = 3
+            num_rows = (num_clients + cols_per_row - 1) // cols_per_row
+            
+            for row in range(num_rows):
+                cols = st.columns(cols_per_row)
+                for col_idx in range(cols_per_row):
+                    client_idx = row * cols_per_row + col_idx
+                    if client_idx < num_clients:
+                        with cols[col_idx]:
+                            client_name = filtered_df.iloc[client_idx]['Cliente']
+                            is_selected = client_name in st.session_state.selected_clients
+                            
+                            # Checkbox para seleção
+                            if st.checkbox(
+                                f"✅ {client_name[:20]}{'...' if len(client_name) > 20 else ''}", 
+                                value=is_selected,
+                                key=f"client_checkbox_{client_idx}"
+                            ):
+                                if client_name not in st.session_state.selected_clients:
+                                    st.session_state.selected_clients.append(client_name)
+                            else:
+                                if client_name in st.session_state.selected_clients:
+                                    st.session_state.selected_clients.remove(client_name)
+        else:
+            st.info("Nenhum cliente disponível para seleção.")
         
         st.markdown("---")
         
@@ -1957,15 +1968,19 @@ def clients_management_page():
             
             with col2:
                 # Exportar apenas clientes selecionados
-                selected_df = filtered_df[filtered_df['Cliente'].isin(st.session_state.selected_clients)]
-                csv_selected = selected_df.to_csv(index=False)
-                st.download_button(
-                    label="📥 Exportar Selecionados",
-                    data=csv_selected,
-                    file_name=f"clientes_selecionados_{datetime.now().strftime('%Y%m%d')}.csv",
-                    mime="text/csv",
-                    key="export_selected_clients"
-                )
+                if 'Cliente' in filtered_df.columns and not filtered_df.empty:
+                    selected_df = filtered_df[filtered_df['Cliente'].isin(st.session_state.selected_clients)]
+                    if not selected_df.empty:
+                        csv_selected = selected_df.to_csv(index=False)
+                        st.download_button(
+                            label="📥 Exportar Selecionados",
+                            data=csv_selected,
+                            file_name=f"clientes_selecionados_{datetime.now().strftime('%Y%m%d')}.csv",
+                            mime="text/csv",
+                            key="export_selected_clients"
+                        )
+                    else:
+                        st.info("Nenhum cliente selecionado para exportar.")
             
             with col3:
                 if st.button("📊 Ver Detalhes", key="view_selected_details"):
@@ -2018,21 +2033,26 @@ def clients_management_page():
                 st.markdown("---")
                 st.subheader("📊 Detalhes dos Clientes Selecionados")
                 
-                selected_df = filtered_df[filtered_df['Cliente'].isin(st.session_state.selected_clients)]
+                if 'Cliente' in filtered_df.columns and not filtered_df.empty:
+                    selected_df = filtered_df[filtered_df['Cliente'].isin(st.session_state.selected_clients)]
+                else:
+                    selected_df = pd.DataFrame()  # DataFrame vazio se não há dados
                 
                 # Estatísticas dos selecionados
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
-                    st.metric("Total Selecionados", len(selected_df))
+                    st.metric("Total Selecionados", len(selected_df) if not selected_df.empty else 0)
                 
                 with col2:
-                    if 'Empréstimos' in selected_df.columns:
+                    if not selected_df.empty and 'Empréstimos' in selected_df.columns:
                         total_loans = selected_df['Empréstimos'].sum()
                         st.metric("Total Empréstimos", total_loans)
+                    else:
+                        st.metric("Total Empréstimos", 0)
                 
                 with col3:
-                    if 'Valor Total' in selected_df.columns:
+                    if not selected_df.empty and 'Valor Total' in selected_df.columns:
                         # Extrair valores numéricos dos valores formatados
                         def extract_value(val_str):
                             if val_str == "-":
@@ -2046,9 +2066,14 @@ def clients_management_page():
                         
                         total_value = selected_df['Valor Total'].apply(extract_value).sum()
                         st.metric("Valor Total", f"R$ {total_value:,.2f}")
+                    else:
+                        st.metric("Valor Total", "R$ 0,00")
                 
                 # Tabela detalhada dos selecionados
-                st.dataframe(selected_df, use_container_width=True, hide_index=True)
+                if not selected_df.empty:
+                    st.dataframe(selected_df, use_container_width=True, hide_index=True)
+                else:
+                    st.info("Nenhum cliente selecionado para exibir detalhes.")
                 
                 if st.button("❌ Fechar Detalhes", key="close_details"):
                     st.session_state.show_selected_details = False
