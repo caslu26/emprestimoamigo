@@ -996,7 +996,7 @@ def user_dashboard_page():
             return ''
         
         # Aplicar estilo
-        styled_df = display_df.style.applymap(color_status, subset=['Status'])
+        styled_df = display_df.style.map(color_status, subset=['Status'])
         
         st.dataframe(
             styled_df,
@@ -1383,7 +1383,7 @@ def loans_detail_page(loan_type='emprestimos'):
         })
         
         # Aplicar estilo
-        styled_df = display_df.style.applymap(color_status, subset=['Status'])
+        styled_df = display_df.style.map(color_status, subset=['Status'])
         
         st.dataframe(
             styled_df,
@@ -1952,7 +1952,7 @@ def support_page():
         show_df = my_df.copy()
         show_df = show_df[['id','titulo','tipo','status','created_at','updated_at','resolved_at']]
         show_df = show_df.rename(columns={'id':'ID','titulo':'Título','tipo':'Tipo','status':'Status','created_at':'Criado em','updated_at':'Atualizado em','resolved_at':'Resolvido em'})
-        st.dataframe(show_df.style.applymap(color_status, subset=['Status']), use_container_width=True)
+        st.dataframe(show_df.style.map(color_status, subset=['Status']), use_container_width=True)
 
     if st.session_state.get('user_role') == 'admin':
         st.markdown("---")
