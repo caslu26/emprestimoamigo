@@ -1880,21 +1880,219 @@ def clients_management_page():
                 st.metric("🏪 Comerciantes", comerciantes)
         
         # Ações em lote
-        st.subheader("Ações em Lote")
+        st.subheader("🔧 Ações em Lote")
+        
+        # Inicializar lista de seleção se não existir
+        if 'selected_clients' not in st.session_state:
+            st.session_state.selected_clients = []
+        
+        # Seção de seleção múltipla
+        st.markdown("#### 📋 Seleção de Clientes")
+        
+        # Botões para seleção rápida
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            if st.button("✅ Selecionar Todos", key="select_all_clients"):
+                st.session_state.selected_clients = filtered_df['Cliente'].tolist()
+                st.rerun()
+        
+        with col2:
+            if st.button("❌ Desmarcar Todos", key="deselect_all_clients"):
+                st.session_state.selected_clients = []
+                st.rerun()
+        
+        with col3:
+            if st.button("🔄 Inverter Seleção", key="invert_selection"):
+                current_selected = set(st.session_state.selected_clients)
+                all_clients = set(filtered_df['Cliente'].tolist())
+                st.session_state.selected_clients = list(all_clients - current_selected)
+                st.rerun()
+        
+        with col4:
+            selected_count = len(st.session_state.selected_clients)
+            st.metric("Selecionados", selected_count)
+        
+        # Checkboxes para seleção individual
+        st.markdown("**Selecione os clientes:**")
+        
+        # Criar colunas para os checkboxes (3 colunas)
+        num_clients = len(filtered_df)
+        cols_per_row = 3
+        num_rows = (num_clients + cols_per_row - 1) // cols_per_row
+        
+        for row in range(num_rows):
+            cols = st.columns(cols_per_row)
+            for col_idx in range(cols_per_row):
+                client_idx = row * cols_per_row + col_idx
+                if client_idx < num_clients:
+                    with cols[col_idx]:
+                        client_name = filtered_df.iloc[client_idx]['Cliente']
+                        is_selected = client_name in st.session_state.selected_clients
+                        
+                        # Checkbox para seleção
+                        if st.checkbox(
+                            f"✅ {client_name[:20]}{'...' if len(client_name) > 20 else ''}", 
+                            value=is_selected,
+                            key=f"client_checkbox_{client_idx}"
+                        ):
+                            if client_name not in st.session_state.selected_clients:
+                                st.session_state.selected_clients.append(client_name)
+                        else:
+                            if client_name in st.session_state.selected_clients:
+                                st.session_state.selected_clients.remove(client_name)
+        
+        st.markdown("---")
+        
+        # Ações em lote para clientes selecionados
+        if st.session_state.selected_clients:
+            st.markdown("#### ⚡ Ações para Clientes Selecionados")
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                if st.button("🗑️ Deletar Selecionados", key="delete_selected_clients", type="primary"):
+                    st.session_state.show_delete_confirmation = True
+                    st.rerun()
+            
+            with col2:
+                # Exportar apenas clientes selecionados
+                selected_df = filtered_df[filtered_df['Cliente'].isin(st.session_state.selected_clients)]
+                csv_selected = selected_df.to_csv(index=False)
+                st.download_button(
+                    label="📥 Exportar Selecionados",
+                    data=csv_selected,
+                    file_name=f"clientes_selecionados_{datetime.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv",
+                    key="export_selected_clients"
+                )
+            
+            with col3:
+                if st.button("📊 Ver Detalhes", key="view_selected_details"):
+                    st.session_state.show_selected_details = True
+                    st.rerun()
+            
+            # Confirmação de exclusão
+            if st.session_state.get('show_delete_confirmation', False):
+                st.markdown("---")
+                st.subheader("⚠️ Confirmação de Exclusão")
+                
+                st.warning("**ATENÇÃO:** Esta ação não pode ser desfeita!")
+                st.write(f"**Clientes que serão deletados ({len(st.session_state.selected_clients)}):**")
+                
+                # Mostrar lista dos clientes selecionados
+                for i, client in enumerate(st.session_state.selected_clients[:10]):  # Mostrar apenas os primeiros 10
+                    st.write(f"{i+1}. {client}")
+                
+                if len(st.session_state.selected_clients) > 10:
+                    st.write(f"... e mais {len(st.session_state.selected_clients) - 10} clientes")
+                
+                col_confirm, col_cancel = st.columns(2)
+                
+                with col_confirm:
+                    if st.button("✅ Confirmar Exclusão", key="confirm_delete_clients", type="primary"):
+                        deleted_count = 0
+                        for client_name in st.session_state.selected_clients:
+                            # Buscar o cliente no banco de dados
+                            all_clients = db.get_all_clients()
+                            client_row = all_clients[all_clients['nome'] == client_name]
+                            
+                            if not client_row.empty:
+                                client_id = client_row.iloc[0]['id']
+                                success, message = db.delete_client(client_id)
+                                if success:
+                                    deleted_count += 1
+                        
+                        st.success(f"✅ {deleted_count} clientes deletados com sucesso!")
+                        st.session_state.selected_clients = []
+                        st.session_state.show_delete_confirmation = False
+                        st.rerun()
+                
+                with col_cancel:
+                    if st.button("❌ Cancelar", key="cancel_delete_clients"):
+                        st.session_state.show_delete_confirmation = False
+                        st.rerun()
+            
+            # Detalhes dos clientes selecionados
+            if st.session_state.get('show_selected_details', False):
+                st.markdown("---")
+                st.subheader("📊 Detalhes dos Clientes Selecionados")
+                
+                selected_df = filtered_df[filtered_df['Cliente'].isin(st.session_state.selected_clients)]
+                
+                # Estatísticas dos selecionados
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.metric("Total Selecionados", len(selected_df))
+                
+                with col2:
+                    if 'Empréstimos' in selected_df.columns:
+                        total_loans = selected_df['Empréstimos'].sum()
+                        st.metric("Total Empréstimos", total_loans)
+                
+                with col3:
+                    if 'Valor Total' in selected_df.columns:
+                        # Extrair valores numéricos dos valores formatados
+                        def extract_value(val_str):
+                            if val_str == "-":
+                                return 0
+                            # Remover R$ e vírgulas, converter para float
+                            clean_val = val_str.replace("R$ ", "").replace(".", "").replace(",", ".")
+                            try:
+                                return float(clean_val)
+                            except:
+                                return 0
+                        
+                        total_value = selected_df['Valor Total'].apply(extract_value).sum()
+                        st.metric("Valor Total", f"R$ {total_value:,.2f}")
+                
+                # Tabela detalhada dos selecionados
+                st.dataframe(selected_df, use_container_width=True, hide_index=True)
+                
+                if st.button("❌ Fechar Detalhes", key="close_details"):
+                    st.session_state.show_selected_details = False
+                    st.rerun()
+        
+        else:
+            st.info("👆 Selecione clientes acima para realizar ações em lote")
+        
+        st.markdown("---")
+        
+        # Exportar lista completa (todos os clientes filtrados)
+        st.markdown("#### 📊 Exportar Dados")
+        
         col1, col2 = st.columns(2)
         
         with col1:
-            if st.button("🗑️ Deletar Selecionados", key="delete_selected_clients"):
-                st.warning("Funcionalidade de seleção múltipla será implementada em breve.")
+            if st.button("📥 Exportar Lista Completa", key="export_all_clients"):
+                csv_all = filtered_df.to_csv(index=False)
+                st.download_button(
+                    label="📥 Baixar CSV Completo",
+                    data=csv_all,
+                    file_name=f"clientes_completo_{datetime.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv",
+                    key="download_all_clients"
+                )
         
         with col2:
-            if st.button("📊 Exportar Lista", key="export_clients"):
-                csv = filtered_df.to_csv(index=False)
+            if st.button("📊 Relatório Estatístico", key="generate_report"):
+                # Gerar relatório estatístico
+                report_data = {
+                    'Total de Clientes': [len(filtered_df)],
+                    'Clientes com Empréstimos': [len(filtered_df[filtered_df.get('Empréstimos', 0) > 0]) if 'Empréstimos' in filtered_df.columns else 0],
+                    'Clientes Ativos': [len(filtered_df[filtered_df.get('Status', '') == 'Ativo']) if 'Status' in filtered_df.columns else 0],
+                    'Data do Relatório': [datetime.now().strftime('%d/%m/%Y %H:%M')]
+                }
+                
+                report_df = pd.DataFrame(report_data)
+                csv_report = report_df.to_csv(index=False)
                 st.download_button(
-                    label="📥 Baixar CSV",
-                    data=csv,
-                    file_name=f"clientes_{datetime.now().strftime('%Y%m%d')}.csv",
-                    mime="text/csv"
+                    label="📥 Baixar Relatório",
+                    data=csv_report,
+                    file_name=f"relatorio_clientes_{datetime.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv",
+                    key="download_report"
                 )
     else:
         st.info("Nenhum cliente encontrado com os filtros aplicados.")
