@@ -1737,147 +1737,8 @@ def clients_management_page():
     
     # Tabela de clientes - versão melhorada e organizada
     if not filtered_df.empty:
-        st.markdown("### 📋 Lista de Clientes")
-        
-        # Preparar dados para exibição
-        display_df = filtered_df.copy()
-        
-        # Obter dados de empréstimos para enriquecer a visualização
-        all_loans = db.get_all_loans()
-        
-        # Mapear tipos para ícones mais concisos
-        display_df['tipo'] = display_df['tipo'].map({
-            'emprestimos': '🏦',
-            'motoristas': '🚛',
-            'comerciantes': '🏪'
-        })
-        
-        # Converter created_at para formato mais compacto
-        try:
-            display_df['created_at'] = pd.to_datetime(display_df['created_at']).dt.strftime('%d/%m/%Y')
-        except:
-            display_df['created_at'] = display_df['created_at'].astype(str)
-        
-        # Adicionar informações de empréstimos se disponível
-        if not all_loans.empty:
-            # Contar empréstimos por cliente
-            loans_count = all_loans['nome_cliente'].value_counts()
-            display_df['emprestimos'] = display_df['nome'].map(loans_count).fillna(0).astype(int)
-            
-            # Calcular valor total emprestado por cliente
-            loans_value = all_loans.groupby('nome_cliente')['valor_total'].sum()
-            display_df['valor_total'] = display_df['nome'].map(loans_value).fillna(0)
-            
-            # Calcular valor pendente por cliente
-            loans_pending = all_loans.groupby('nome_cliente').apply(
-                lambda x: (x['valor_total'] - x['valor_pago']).sum()
-            )
-            display_df['valor_pendente'] = display_df['nome'].map(loans_pending).fillna(0)
-            
-            # Status do cliente (ativo/inativo)
-            display_df['status'] = display_df['emprestimos'].apply(
-                lambda x: 'Ativo' if x > 0 else 'Inativo'
-            )
-            
-            # Selecionar colunas para exibição
-            display_df = display_df[['nome', 'telefone', 'tipo', 'emprestimos', 'valor_total', 'valor_pendente', 'status', 'created_at']]
-            display_df.columns = ['Cliente', 'Telefone', 'Tipo', 'Empréstimos', 'Valor Total', 'Valor Pendente', 'Status', 'Cadastro']
-            
-            # Formatar valores monetários
-            display_df['Valor Total'] = display_df['Valor Total'].apply(lambda x: f"R$ {x:,.2f}" if x > 0 else "-")
-            display_df['Valor Pendente'] = display_df['Valor Pendente'].apply(lambda x: f"R$ {x:,.2f}" if x > 0 else "-")
-        else:
-            # Sem empréstimos, mostrar apenas dados básicos
-            display_df = display_df[['nome', 'telefone', 'tipo', 'created_at']]
-            display_df.columns = ['Cliente', 'Telefone', 'Tipo', 'Cadastro']
-        
-        # Formatar telefone corretamente
-        def format_phone_management(phone):
-            if pd.isna(phone) or phone == '' or str(phone) == 'nan':
-                return "Não informado"
-            phone_str = str(phone).strip()
-            if len(phone_str) >= 11 and phone_str.isdigit():
-                return f"({phone_str[:2]}) {phone_str[2:7]}-{phone_str[7:]}"
-            elif len(phone_str) >= 10 and phone_str.isdigit():
-                return f"({phone_str[:2]}) {phone_str[2:6]}-{phone_str[6:]}"
-            else:
-                return phone_str if phone_str != 'nan' else "Não informado"
-        
-        display_df['Telefone'] = display_df['Telefone'].apply(format_phone_management)
-        
-        # Função para destacar clientes ativos e colorir tipos com melhor contraste
-        def highlight_row(row):
-            styles = ['background-color: #ffffff; color: #1a1a1a'] * len(row)
-            
-            # Destacar clientes ativos
-            if 'Status' in display_df.columns and row['Status'] == 'Ativo':
-                styles = ['background-color: #f0f8ff; color: #1a1a1a'] * len(row)
-            elif 'Status' in display_df.columns and row['Status'] == 'Inativo':
-                styles = ['background-color: #fff8f0; color: #1a1a1a'] * len(row)
-            
-            # Colorir tipo com melhor contraste
-            if row['Tipo'] == '🏦':
-                styles[2] = 'background-color: #e3f2fd; color: #1976d2'
-            elif row['Tipo'] == '🚛':
-                styles[2] = 'background-color: #f3e5f5; color: #7b1fa2'
-            elif row['Tipo'] == '🏪':
-                styles[2] = 'background-color: #e8f5e8; color: #388e3c'
-            
-            return styles
-        
-        # Aplicar estilo
-        styled_df = display_df.style.apply(highlight_row, axis=1)
-        
-        # Exibir tabela com configurações otimizadas
-        st.dataframe(
-            styled_df,
-            use_container_width=True,
-            hide_index=True,
-            height=400
-        )
-        
-        # Resumo da tabela com informações extras
-        st.caption(f"📊 **{len(filtered_df)} clientes** encontrados com os filtros aplicados")
-        
-        # Estatísticas detalhadas
-        if not all_loans.empty:
-            st.markdown("#### 📈 Estatísticas Detalhadas")
-            
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                active_clients = len(display_df[display_df.get('Status', '') == 'Ativo'])
-                st.metric("👥 Clientes Ativos", active_clients)
-            
-            with col2:
-                total_loans = display_df['Empréstimos'].sum() if 'Empréstimos' in display_df.columns else 0
-                st.metric("📊 Total Empréstimos", total_loans)
-            
-            with col3:
-                if 'Valor Total' in display_df.columns:
-                    total_value = sum([float(x.replace('R$ ', '').replace('.', '').replace(',', '.')) for x in display_df['Valor Total'] if x != '-'])
-                    st.metric("💰 Valor Total", f"R$ {total_value:,.2f}")
-                else:
-                    st.metric("💰 Valor Total", "R$ 0,00")
-            
-            with col4:
-                avg_loans = display_df['Empréstimos'].mean() if 'Empréstimos' in display_df.columns else 0
-                st.metric("📊 Média Empréstimos", f"{avg_loans:.1f}")
-        
-        # Distribuição por tipo
-        st.markdown("#### 📊 Distribuição por Tipo")
-        type_stats = filtered_df['tipo'].value_counts()
-        if not type_stats.empty:
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                emprestimos = type_stats.get('emprestimos', 0)
-                st.metric("🏦 Empréstimos", emprestimos)
-            with col2:
-                motoristas = type_stats.get('motoristas', 0)
-                st.metric("🚛 Motoristas", motoristas)
-            with col3:
-                comerciantes = type_stats.get('comerciantes', 0)
-                st.metric("🏪 Comerciantes", comerciantes)
+        # Seção de Lista de Clientes removida conforme solicitado
+        st.info("📋 Lista de Clientes foi removida conforme solicitado.")
         
         # Ações em lote
         st.subheader("🔧 Ações em Lote")
@@ -1887,9 +1748,10 @@ def clients_management_page():
             st.session_state.selected_clients = []
         
         # Verificar se o DataFrame tem a coluna 'Cliente' e não está vazio
-        if 'Cliente' not in filtered_df.columns or filtered_df.empty:
+        has_valid_data = 'Cliente' in filtered_df.columns and not filtered_df.empty
+        
+        if not has_valid_data:
             st.warning("⚠️ Nenhum cliente encontrado ou dados inválidos.")
-            return
         
         # Seção de seleção múltipla
         st.markdown("#### 📋 Seleção de Clientes")
@@ -1898,8 +1760,8 @@ def clients_management_page():
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            if st.button("✅ Selecionar Todos", key="select_all_clients"):
-                if 'Cliente' in filtered_df.columns and not filtered_df.empty:
+            if st.button("✅ Selecionar Todos", key="select_all_clients", disabled=not has_valid_data):
+                if has_valid_data:
                     st.session_state.selected_clients = filtered_df['Cliente'].tolist()
                     st.rerun()
         
@@ -1909,8 +1771,8 @@ def clients_management_page():
                 st.rerun()
         
         with col3:
-            if st.button("🔄 Inverter Seleção", key="invert_selection"):
-                if 'Cliente' in filtered_df.columns and not filtered_df.empty:
+            if st.button("🔄 Inverter Seleção", key="invert_selection", disabled=not has_valid_data):
+                if has_valid_data:
                     current_selected = set(st.session_state.selected_clients)
                     all_clients = set(filtered_df['Cliente'].tolist())
                     st.session_state.selected_clients = list(all_clients - current_selected)
@@ -1924,7 +1786,7 @@ def clients_management_page():
         st.markdown("**Selecione os clientes:**")
         
         # Verificar novamente se temos dados válidos
-        if 'Cliente' in filtered_df.columns and not filtered_df.empty:
+        if has_valid_data:
             # Criar colunas para os checkboxes (3 colunas)
             num_clients = len(filtered_df)
             cols_per_row = 3
@@ -1968,7 +1830,7 @@ def clients_management_page():
             
             with col2:
                 # Exportar apenas clientes selecionados
-                if 'Cliente' in filtered_df.columns and not filtered_df.empty:
+                if has_valid_data:
                     selected_df = filtered_df[filtered_df['Cliente'].isin(st.session_state.selected_clients)]
                     if not selected_df.empty:
                         csv_selected = selected_df.to_csv(index=False)
@@ -2033,7 +1895,7 @@ def clients_management_page():
                 st.markdown("---")
                 st.subheader("📊 Detalhes dos Clientes Selecionados")
                 
-                if 'Cliente' in filtered_df.columns and not filtered_df.empty:
+                if has_valid_data:
                     selected_df = filtered_df[filtered_df['Cliente'].isin(st.session_state.selected_clients)]
                 else:
                     selected_df = pd.DataFrame()  # DataFrame vazio se não há dados
@@ -2090,35 +1952,37 @@ def clients_management_page():
         col1, col2 = st.columns(2)
         
         with col1:
-            if st.button("📥 Exportar Lista Completa", key="export_all_clients"):
-                csv_all = filtered_df.to_csv(index=False)
-                st.download_button(
-                    label="📥 Baixar CSV Completo",
-                    data=csv_all,
-                    file_name=f"clientes_completo_{datetime.now().strftime('%Y%m%d')}.csv",
-                    mime="text/csv",
-                    key="download_all_clients"
-                )
+            if st.button("📥 Exportar Lista Completa", key="export_all_clients", disabled=not has_valid_data):
+                if has_valid_data:
+                    csv_all = filtered_df.to_csv(index=False)
+                    st.download_button(
+                        label="📥 Baixar CSV Completo",
+                        data=csv_all,
+                        file_name=f"clientes_completo_{datetime.now().strftime('%Y%m%d')}.csv",
+                        mime="text/csv",
+                        key="download_all_clients"
+                    )
         
         with col2:
-            if st.button("📊 Relatório Estatístico", key="generate_report"):
-                # Gerar relatório estatístico
-                report_data = {
-                    'Total de Clientes': [len(filtered_df)],
-                    'Clientes com Empréstimos': [len(filtered_df[filtered_df.get('Empréstimos', 0) > 0]) if 'Empréstimos' in filtered_df.columns else 0],
-                    'Clientes Ativos': [len(filtered_df[filtered_df.get('Status', '') == 'Ativo']) if 'Status' in filtered_df.columns else 0],
-                    'Data do Relatório': [datetime.now().strftime('%d/%m/%Y %H:%M')]
-                }
-                
-                report_df = pd.DataFrame(report_data)
-                csv_report = report_df.to_csv(index=False)
-                st.download_button(
-                    label="📥 Baixar Relatório",
-                    data=csv_report,
-                    file_name=f"relatorio_clientes_{datetime.now().strftime('%Y%m%d')}.csv",
-                    mime="text/csv",
-                    key="download_report"
-                )
+            if st.button("📊 Relatório Estatístico", key="generate_report", disabled=not has_valid_data):
+                if has_valid_data:
+                    # Gerar relatório estatístico
+                    report_data = {
+                        'Total de Clientes': [len(filtered_df)],
+                        'Clientes com Empréstimos': [len(filtered_df[filtered_df.get('Empréstimos', 0) > 0]) if 'Empréstimos' in filtered_df.columns else 0],
+                        'Clientes Ativos': [len(filtered_df[filtered_df.get('Status', '') == 'Ativo']) if 'Status' in filtered_df.columns else 0],
+                        'Data do Relatório': [datetime.now().strftime('%d/%m/%Y %H:%M')]
+                    }
+                    
+                    report_df = pd.DataFrame(report_data)
+                    csv_report = report_df.to_csv(index=False)
+                    st.download_button(
+                        label="📥 Baixar Relatório",
+                        data=csv_report,
+                        file_name=f"relatorio_clientes_{datetime.now().strftime('%Y%m%d')}.csv",
+                        mime="text/csv",
+                        key="download_report"
+                    )
     else:
         st.info("Nenhum cliente encontrado com os filtros aplicados.")
 
