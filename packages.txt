@@ -1,0 +1,3 @@
+# Dependências do sistema (se necessário)
+# Deixar vazio se não precisar de dependências especiais
+

@@ -827,183 +827,6 @@ def admin_dashboard_page():
         st.info("Nenhum empréstimo cadastrado ainda.")
     
     st.markdown("---")
-    
-    # Nova seção: Análise Temporal
-    st.subheader("📅 Análise Temporal de Empréstimos")
-    
-    # Filtros de período - responsivos
-    cols = create_responsive_columns(3)
-    
-    with cols[0]:
-        period_type = st.selectbox(
-            "Tipo de Período",
-            ["semanal", "quinzenal", "mensal"],
-            help="Selecione como agrupar os empréstimos por tempo"
-        )
-    
-    with cols[1]:
-        analysis_type = st.selectbox(
-            "Tipo de Análise",
-            ["Todos os Empréstimos", "Por Categoria"],
-            help="Escolha se quer ver todos os empréstimos ou separados por categoria"
-        )
-    
-    with cols[2]:
-        metric_type = st.selectbox(
-            "Métrica Principal",
-            ["Quantidade", "Valor Emprestado", "Valor Total", "Valor Pago"],
-            help="Escolha a métrica principal para visualizar"
-        )
-    
-    # Seletor de período de data
-    st.markdown("#### 📆 Período de Análise")
-    start_date, end_date = get_date_range_selector()
-    
-    # Verificar se há empréstimos no período
-    if not all_df.empty:
-        # Aplicar filtro de data
-        filtered_df = all_df[
-            (all_df['data_emprestimo'].dt.date >= start_date) & 
-            (all_df['data_emprestimo'].dt.date <= end_date)
-        ]
-        
-        if not filtered_df.empty:
-            # Métricas do período selecionado - responsivas
-            st.markdown("#### 📊 Resumo do Período Selecionado")
-            
-            period_metrics = [
-                {
-                    'label': "Total Empréstimos",
-                    'value': len(filtered_df),
-                    'delta': None
-                },
-                {
-                    'label': "Valor Emprestado",
-                    'value': f"R$ {filtered_df['valor_solicitado'].sum():,.2f}",
-                    'delta': None
-                },
-                {
-                    'label': "Valor Total",
-                    'value': f"R$ {filtered_df['valor_total'].sum():,.2f}",
-                    'delta': None
-                },
-                {
-                    'label': "Valor Pago",
-                    'value': f"R$ {filtered_df['valor_pago'].sum():,.2f}",
-                    'delta': None
-                }
-            ]
-            
-            create_responsive_metrics(period_metrics, num_cols=4)
-            
-            st.markdown("---")
-            
-            # Gráficos de análise temporal
-            if analysis_type == "Todos os Empréstimos":
-                # Análise geral
-                df_period = get_period_filter(filtered_df, period_type)
-                metrics = calculate_period_metrics(df_period, period_type)
-                
-                if not metrics.empty:
-                    # Gráfico de linha temporal
-                    st.markdown(f"#### 📈 Evolução {period_type.title()}")
-                    
-                    # Mapear métrica selecionada
-                    metric_map = {
-                        "Quantidade": "total_emprestimos",
-                        "Valor Emprestado": "valor_emprestado", 
-                        "Valor Total": "valor_total",
-                        "Valor Pago": "valor_pago"
-                    }
-                    
-                    selected_metric = metric_map[metric_type]
-                    
-                    fig = px.line(
-                        metrics,
-                        x='periodo',
-                        y=selected_metric,
-                        title=f"{metric_type} por {period_type.title()}",
-                        markers=True
-                    )
-                    fig.update_layout(xaxis_title="Período", yaxis_title=metric_type)
-                    st.plotly_chart(fig, use_container_width=True)
-                    
-                    # Tabela de métricas detalhadas
-                    st.markdown("#### 📋 Detalhamento por Período")
-                    
-                    # Formatar tabela para exibição
-                    display_metrics = metrics.copy()
-                    display_metrics['periodo'] = display_metrics['periodo'].astype(str)
-                    display_metrics['valor_emprestado'] = display_metrics['valor_emprestado'].apply(lambda x: f"R$ {x:,.2f}")
-                    display_metrics['valor_total'] = display_metrics['valor_total'].apply(lambda x: f"R$ {x:,.2f}")
-                    display_metrics['valor_pago'] = display_metrics['valor_pago'].apply(lambda x: f"R$ {x:,.2f}")
-                    display_metrics['valor_pendente'] = display_metrics['valor_pendente'].apply(lambda x: f"R$ {x:,.2f}")
-                    display_metrics['taxa_pagamento'] = display_metrics['taxa_pagamento'].apply(lambda x: f"{x:.1f}%")
-                    
-                    display_metrics.columns = [
-                        'Período', 'Total Empréstimos', 'Valor Emprestado', 
-                        'Valor Total', 'Valor Pago', 'Empréstimos Pagos',
-                        'Valor Pendente', 'Taxa Pagamento'
-                    ]
-                    
-                    st.dataframe(display_metrics, use_container_width=True, hide_index=True)
-                    
-            else:
-                # Análise por categoria
-                st.markdown(f"#### 📊 Análise por Categoria - {period_type.title()}")
-                
-                categories = filtered_df['tipo'].unique()
-                
-                for categoria in categories:
-                    cat_df = filtered_df[filtered_df['tipo'] == categoria]
-                    cat_period = get_period_filter(cat_df, period_type)
-                    cat_metrics = calculate_period_metrics(cat_period, period_type)
-                    
-                    if not cat_metrics.empty:
-                        # Mapear métrica selecionada
-                        metric_map = {
-                            "Quantidade": "total_emprestimos",
-                            "Valor Emprestado": "valor_emprestado", 
-                            "Valor Total": "valor_total",
-                            "Valor Pago": "valor_pago"
-                        }
-                        
-                        selected_metric = metric_map[metric_type]
-                        
-                        # Nome da categoria
-                        cat_names = {
-                            'emprestimos': '🏦 Empréstimos Clientes',
-                            'motoristas': '🚛 Motoristas',
-                            'comerciantes': '🏪 Comerciantes'
-                        }
-                        
-                        st.markdown(f"**{cat_names.get(categoria, categoria.title())}**")
-                        
-                        fig = px.bar(
-                            cat_metrics,
-                            x='periodo',
-                            y=selected_metric,
-                            title=f"{metric_type} - {cat_names.get(categoria, categoria.title())}",
-                            color=selected_metric,
-                            color_continuous_scale='Blues'
-                        )
-                        fig.update_layout(xaxis_title="Período", yaxis_title=metric_type)
-                        st.plotly_chart(fig, use_container_width=True)
-                        
-                        # Métricas resumidas da categoria
-                        col1, col2, col3 = st.columns(3)
-                        with col1:
-                            st.metric("Total", cat_metrics[selected_metric].sum() if metric_type == "Quantidade" else f"R$ {cat_metrics[selected_metric].sum():,.2f}")
-                        with col2:
-                            st.metric("Média por Período", cat_metrics[selected_metric].mean() if metric_type == "Quantidade" else f"R$ {cat_metrics[selected_metric].mean():,.2f}")
-                        with col3:
-                            st.metric("Maior Período", cat_metrics[selected_metric].max() if metric_type == "Quantidade" else f"R$ {cat_metrics[selected_metric].max():,.2f}")
-                        
-                        st.markdown("---")
-        else:
-            st.warning(f"Nenhum empréstimo encontrado no período de {start_date.strftime('%d/%m/%Y')} a {end_date.strftime('%d/%m/%Y')}.")
-    else:
-        st.info("Nenhum empréstimo cadastrado ainda.")
 
 def user_dashboard_page():
     st.title("📋 Meus Empréstimos - Visão do Funcionário")
@@ -1389,25 +1212,37 @@ def loans_detail_page(loan_type='emprestimos'):
     
     st.title(f"{type_icons[loan_type]} {type_names[loan_type]}")
     
-    # Seção de clientes
+    # Seção de clientes - versão melhorada e organizada
     st.subheader("👥 Clientes Cadastrados")
     clients_df = db.get_clients(loan_type)
     
     if not clients_df.empty:
-        # Mostrar clientes em cards
-        cols = st.columns(3)
-        for idx, client in clients_df.iterrows():
-            with cols[idx % 3]:
-                with st.container():
-                    st.markdown(f"""
-                    <div style="border: 1px solid #ddd; padding: 10px; border-radius: 5px; margin: 5px 0;">
-                        <strong>👤 {client['nome']}</strong><br>
-                        📞 {client['telefone']}<br>
-                        <small>ID: {client['id']}</small>
-                    </div>
-                    """, unsafe_allow_html=True)
+        # Estatísticas rápidas
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total Clientes", len(clients_df))
+        with col2:
+            # Contar empréstimos por cliente
+            df_loans = db.get_loans(loan_type)
+            if not df_loans.empty:
+                loans_per_client = df_loans['nome_cliente'].value_counts()
+                avg_loans = loans_per_client.mean()
+                st.metric("Média Empréstimos/Cliente", f"{avg_loans:.1f}")
+            else:
+                st.metric("Média Empréstimos/Cliente", "0")
+        with col3:
+            # Cliente com mais empréstimos
+            if not df_loans.empty:
+                top_client = loans_per_client.index[0]
+                top_loans = loans_per_client.iloc[0]
+                st.metric("Top Cliente", f"{top_client[:15]}...")
+            else:
+                st.metric("Top Cliente", "-")
+        
+        st.markdown("---")
     else:
-        st.info("Nenhum cliente cadastrado para esta categoria.")
+        st.info(f"📝 Nenhum cliente cadastrado para {type_names[loan_type].lower()} ainda.")
+        st.markdown("💡 **Dica:** Clientes são adicionados automaticamente quando você cadastra empréstimos.")
     
     st.markdown("---")
     
@@ -1555,83 +1390,6 @@ def loans_detail_page(loan_type='emprestimos'):
             use_container_width=True,
             hide_index=True
         )
-        
-        # Ações individuais para cada empréstimo
-        st.subheader("🔧 Ações Individuais")
-        
-        # Criar colunas para os botões de ação
-        num_loans = len(filtered_df)
-        cols_per_row = 3
-        num_rows = (num_loans + cols_per_row - 1) // cols_per_row
-        
-        for row in range(num_rows):
-            cols = st.columns(cols_per_row)
-            for col_idx in range(cols_per_row):
-                loan_idx = row * cols_per_row + col_idx
-                if loan_idx < num_loans:
-                    with cols[col_idx]:
-                        loan = filtered_df.iloc[loan_idx]
-                        st.write(f"**ID {loan['id']}:** {loan['nome_cliente']}")
-                        
-                        # Botão de deletar individual
-                        unique_key = f"delete_individual_{loan['id']}_{loan_type}_{loan_idx}"
-                        if st.button(f"🗑️ Deletar", key=unique_key, type="secondary"):
-                            st.session_state.show_individual_delete = True
-                            st.session_state.individual_delete_id = loan['id']
-                            st.session_state.individual_delete_type = loan_type
-                            st.session_state.individual_delete_name = loan['nome_cliente']
-                            st.rerun()
-        
-        # Confirmação de exclusão individual
-        if st.session_state.get('show_individual_delete', False):
-            st.markdown("---")
-            st.subheader("⚠️ Confirmação de Exclusão Individual")
-            
-            delete_id = st.session_state.get('individual_delete_id')
-            delete_type = st.session_state.get('individual_delete_type')
-            delete_name = st.session_state.get('individual_delete_name')
-            
-            st.warning("**ATENÇÃO:** Esta ação não pode ser desfeita!")
-            st.write(f"**Empréstimo que será deletado:**")
-            st.write(f"- ID {delete_id}: {delete_name}")
-            
-            col_confirm, col_cancel = st.columns(2)
-            
-            with col_confirm:
-                confirm_key = f"confirm_individual_delete_{delete_id}_{delete_type}"
-                if st.button("✅ Confirmar Exclusão", key=confirm_key, type="primary"):
-                    success, message = db.delete_loan(delete_id, delete_type)
-                    if success:
-                        st.success(message)
-                    else:
-                        st.error(message)
-                    
-                    # Limpar estado
-                    if 'show_individual_delete' in st.session_state:
-                        del st.session_state.show_individual_delete
-                    if 'individual_delete_id' in st.session_state:
-                        del st.session_state.individual_delete_id
-                    if 'individual_delete_type' in st.session_state:
-                        del st.session_state.individual_delete_type
-                    if 'individual_delete_name' in st.session_state:
-                        del st.session_state.individual_delete_name
-                    
-                    st.rerun()
-            
-            with col_cancel:
-                cancel_key = f"cancel_individual_delete_{delete_id}_{delete_type}"
-                if st.button("❌ Cancelar", key=cancel_key):
-                    # Limpar estado
-                    if 'show_individual_delete' in st.session_state:
-                        del st.session_state.show_individual_delete
-                    if 'individual_delete_id' in st.session_state:
-                        del st.session_state.individual_delete_id
-                    if 'individual_delete_type' in st.session_state:
-                        del st.session_state.individual_delete_type
-                    if 'individual_delete_name' in st.session_state:
-                        del st.session_state.individual_delete_name
-                    st.rerun()
-        
         # Ações em lote
         st.subheader("🔧 Ações em Lote")
         col1, col2, col3 = st.columns(3)
@@ -1790,59 +1548,202 @@ def add_loan_page(loan_type='emprestimos'):
 def clients_management_page():
     st.title("👥 Gestão de Clientes")
     
+    # Seção de Novo Empréstimo
+    st.markdown("### ➕ Novo Empréstimo")
+    
+    # Submenu para escolher tipo de empréstimo
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        st.markdown("**Escolha o tipo de empréstimo:**")
+        loan_type = st.radio(
+            "Tipo de Empréstimo:",
+            ["🏦 Clientes Gerais", "🚛 Motorista", "🏪 Comerciante"],
+            horizontal=True,
+            help="Selecione a categoria do empréstimo"
+        )
+        
+        type_map = {
+            "🏦 Clientes Gerais": "emprestimos", 
+            "🚛 Motorista": "motoristas", 
+            "🏪 Comerciante": "comerciantes"
+        }
+        
+        # Botão para abrir formulário
+        if st.button("📝 Cadastrar Novo Empréstimo", type="primary"):
+            st.session_state.show_new_loan_form = True
+            st.session_state.selected_loan_type = type_map[loan_type]
+            st.rerun()
+    
+    # Mostrar formulário se solicitado
+    if st.session_state.get('show_new_loan_form', False):
+        st.markdown("---")
+        st.markdown("### 📝 Formulário de Novo Empréstimo")
+        
+        # Botão para voltar
+        if st.button("⬅️ Voltar"):
+            st.session_state.show_new_loan_form = False
+            st.rerun()
+        
+        # Chamar a função de cadastro de empréstimo
+        add_loan_page(st.session_state.get('selected_loan_type', 'emprestimos'))
+        return  # Sair da função para mostrar apenas o formulário
+    
+    st.markdown("---")
+    
     # Obter todos os clientes
     clients_df = db.get_all_clients()
     
     if clients_df.empty:
-        st.info("Nenhum cliente cadastrado ainda.")
+        st.info("📝 Nenhum cliente cadastrado ainda.")
+        st.markdown("💡 **Dica:** Clientes são adicionados automaticamente quando você cadastra empréstimos.")
         return
     
-    # Filtros
-    col1, col2 = st.columns(2)
+    # Seção de filtros melhorada
+    st.markdown("### 🔍 Filtros e Busca")
+    
+    # Primeira linha de filtros
+    col1, col2, col3 = st.columns(3)
+    
     with col1:
         tipo_filter = st.selectbox(
-            "Filtrar por Tipo",
-            ["Todos", "Empréstimos", "Motoristas", "Comerciantes"]
+            "📂 Filtrar por Tipo",
+            ["Todos", "Empréstimos", "Motoristas", "Comerciantes"],
+            help="Filtra clientes por categoria de empréstimo"
         )
+    
     with col2:
-        search_name = st.text_input("🔍 Buscar por Nome")
+        search_name = st.text_input(
+            "🔍 Buscar por Nome", 
+            placeholder="Digite o nome do cliente...",
+            help="Busca por nome do cliente (busca parcial)"
+        )
+    
+    with col3:
+        # Filtro por status de atividade
+        activity_filter = st.selectbox(
+            "⚡ Filtrar por Atividade",
+            ["Todos", "Clientes Ativos", "Clientes Inativos"],
+            help="Clientes ativos têm empréstimos, inativos não têm"
+        )
+    
+    # Segunda linha de filtros
+    col4, col5 = st.columns(2)
+    
+    with col4:
+        # Filtro por período de cadastro
+        cadastro_filter = st.selectbox(
+            "📅 Período de Cadastro",
+            ["Todos", "Última semana", "Último mês", "Últimos 3 meses", "Último ano"],
+            help="Filtra por quando o cliente foi cadastrado"
+        )
+    
+    with col5:
+        # Ordenação
+        sort_by = st.selectbox(
+            "📊 Ordenar por",
+            ["Nome (A-Z)", "Nome (Z-A)", "Data Cadastro (Mais Recente)", "Data Cadastro (Mais Antigo)"],
+            help="Escolha como ordenar a lista de clientes"
+        )
     
     # Aplicar filtros
     filtered_df = clients_df.copy()
     
+    # Filtro por tipo
     if tipo_filter != "Todos":
         tipo_map = {
-            "Empréstimos": "emprestimos Clientes",
+            "Empréstimos": "emprestimos",
             "Motoristas": "motoristas",
             "Comerciantes": "comerciantes"
         }
         filtered_df = filtered_df[filtered_df['tipo'] == tipo_map[tipo_filter]]
     
+    # Filtro por nome
     if search_name:
         filtered_df = filtered_df[filtered_df['nome'].str.contains(search_name, case=False, na=False)]
     
-    # Estatísticas
+    # Filtro por atividade
+    if activity_filter != "Todos":
+        # Obter todos os empréstimos para verificar atividade
+        all_loans = db.get_all_loans()
+        if not all_loans.empty:
+            active_clients = set(all_loans['nome_cliente'].unique())
+            if activity_filter == "Clientes Ativos":
+                filtered_df = filtered_df[filtered_df['nome'].isin(active_clients)]
+            elif activity_filter == "Clientes Inativos":
+                filtered_df = filtered_df[~filtered_df['nome'].isin(active_clients)]
+    
+    # Filtro por período de cadastro
+    if cadastro_filter != "Todos":
+        try:
+            filtered_df['created_at'] = pd.to_datetime(filtered_df['created_at'])
+            today = pd.Timestamp.now()
+            
+            if cadastro_filter == "Última semana":
+                start_date = today - pd.Timedelta(days=7)
+            elif cadastro_filter == "Último mês":
+                start_date = today - pd.Timedelta(days=30)
+            elif cadastro_filter == "Últimos 3 meses":
+                start_date = today - pd.Timedelta(days=90)
+            elif cadastro_filter == "Último ano":
+                start_date = today - pd.Timedelta(days=365)
+            
+            filtered_df = filtered_df[filtered_df['created_at'] >= start_date]
+        except:
+            pass  # Se houver erro na conversão de data, ignora o filtro
+    
+    # Ordenação
+    if sort_by == "Nome (A-Z)":
+        filtered_df = filtered_df.sort_values('nome', ascending=True)
+    elif sort_by == "Nome (Z-A)":
+        filtered_df = filtered_df.sort_values('nome', ascending=False)
+    elif sort_by == "Data Cadastro (Mais Recente)":
+        try:
+            filtered_df['created_at'] = pd.to_datetime(filtered_df['created_at'])
+            filtered_df = filtered_df.sort_values('created_at', ascending=False)
+        except:
+            pass
+    elif sort_by == "Data Cadastro (Mais Antigo)":
+        try:
+            filtered_df['created_at'] = pd.to_datetime(filtered_df['created_at'])
+            filtered_df = filtered_df.sort_values('created_at', ascending=True)
+        except:
+            pass
+    
+    # Resetar índice após filtros
+    filtered_df = filtered_df.reset_index(drop=True)
+    
+    # Estatísticas melhoradas
+    st.markdown("### 📊 Estatísticas")
+    
     col1, col2, col3, col4 = st.columns(4)
+    
     with col1:
-        st.metric("Total Clientes", len(filtered_df))
+        st.metric("👥 Total Clientes", len(filtered_df), delta=f"{len(filtered_df) - len(clients_df)}" if len(filtered_df) != len(clients_df) else None)
+    
     with col2:
         emprestimos_count = len(filtered_df[filtered_df['tipo'] == 'emprestimos'])
-        st.metric("Empréstimos", emprestimos_count)
+        st.metric("🏦 Empréstimos", emprestimos_count)
+    
     with col3:
         motoristas_count = len(filtered_df[filtered_df['tipo'] == 'motoristas'])
-        st.metric("Motoristas", motoristas_count)
+        st.metric("🚛 Motoristas", motoristas_count)
+    
     with col4:
         comerciantes_count = len(filtered_df[filtered_df['tipo'] == 'comerciantes'])
-        st.metric("Comerciantes", comerciantes_count)
+        st.metric("🏪 Comerciantes", comerciantes_count)
     
     st.markdown("---")
     
-    # Tabela de clientes - versão resumida e organizada
+    # Tabela de clientes - versão melhorada e organizada
     if not filtered_df.empty:
-        st.subheader("📋 Lista de Clientes")
+        st.markdown("### 📋 Lista de Clientes")
         
-        # Preparar dados para exibição resumida
+        # Preparar dados para exibição
         display_df = filtered_df.copy()
+        
+        # Obter dados de empréstimos para enriquecer a visualização
+        all_loans = db.get_all_loans()
         
         # Mapear tipos para ícones mais concisos
         display_df['tipo'] = display_df['tipo'].map({
@@ -1853,46 +1754,118 @@ def clients_management_page():
         
         # Converter created_at para formato mais compacto
         try:
-            display_df['created_at'] = pd.to_datetime(display_df['created_at']).dt.strftime('%d/%m')
+            display_df['created_at'] = pd.to_datetime(display_df['created_at']).dt.strftime('%d/%m/%Y')
         except:
             display_df['created_at'] = display_df['created_at'].astype(str)
         
-        # Preparar colunas resumidas
-        display_df = display_df[['nome', 'telefone', 'tipo', 'created_at']]
+        # Adicionar informações de empréstimos se disponível
+        if not all_loans.empty:
+            # Contar empréstimos por cliente
+            loans_count = all_loans['nome_cliente'].value_counts()
+            display_df['emprestimos'] = display_df['nome'].map(loans_count).fillna(0).astype(int)
+            
+            # Calcular valor total emprestado por cliente
+            loans_value = all_loans.groupby('nome_cliente')['valor_total'].sum()
+            display_df['valor_total'] = display_df['nome'].map(loans_value).fillna(0)
+            
+            # Calcular valor pendente por cliente
+            loans_pending = all_loans.groupby('nome_cliente').apply(
+                lambda x: (x['valor_total'] - x['valor_pago']).sum()
+            )
+            display_df['valor_pendente'] = display_df['nome'].map(loans_pending).fillna(0)
+            
+            # Status do cliente (ativo/inativo)
+            display_df['status'] = display_df['emprestimos'].apply(
+                lambda x: 'Ativo' if x > 0 else 'Inativo'
+            )
+            
+            # Selecionar colunas para exibição
+            display_df = display_df[['nome', 'telefone', 'tipo', 'emprestimos', 'valor_total', 'valor_pendente', 'status', 'created_at']]
+            display_df.columns = ['Cliente', 'Telefone', 'Tipo', 'Empréstimos', 'Valor Total', 'Valor Pendente', 'Status', 'Cadastro']
+            
+            # Formatar valores monetários
+            display_df['Valor Total'] = display_df['Valor Total'].apply(lambda x: f"R$ {x:,.2f}" if x > 0 else "-")
+            display_df['Valor Pendente'] = display_df['Valor Pendente'].apply(lambda x: f"R$ {x:,.2f}" if x > 0 else "-")
+        else:
+            # Sem empréstimos, mostrar apenas dados básicos
+            display_df = display_df[['nome', 'telefone', 'tipo', 'created_at']]
+            display_df.columns = ['Cliente', 'Telefone', 'Tipo', 'Cadastro']
         
-        # Formatar telefone para ser mais compacto
-        display_df['telefone'] = display_df['telefone'].apply(
-            lambda x: f"({x[:2]}) {x[2:7]}-{x[7:]}" if pd.notna(x) and len(str(x)) >= 11 else str(x) if pd.notna(x) else "-"
-        )
+        # Formatar telefone corretamente
+        def format_phone_management(phone):
+            if pd.isna(phone) or phone == '' or str(phone) == 'nan':
+                return "Não informado"
+            phone_str = str(phone).strip()
+            if len(phone_str) >= 11 and phone_str.isdigit():
+                return f"({phone_str[:2]}) {phone_str[2:7]}-{phone_str[7:]}"
+            elif len(phone_str) >= 10 and phone_str.isdigit():
+                return f"({phone_str[:2]}) {phone_str[2:6]}-{phone_str[6:]}"
+            else:
+                return phone_str if phone_str != 'nan' else "Não informado"
         
-        # Renomear colunas para versão mais compacta
-        display_df.columns = ['Cliente', 'Telefone', 'Tipo', 'Cadastro']
+        display_df['Telefone'] = display_df['Telefone'].apply(format_phone_management)
         
-        # Função para colorir tipos
-        def color_type(val):
-            if val == '🏦':
-                return 'background-color: #e3f2fd; color: #1976d2'
-            elif val == '🚛':
-                return 'background-color: #f3e5f5; color: #7b1fa2'
-            elif val == '🏪':
-                return 'background-color: #e8f5e8; color: #388e3c'
-            return ''
+        # Função para destacar clientes ativos e colorir tipos com melhor contraste
+        def highlight_row(row):
+            styles = ['background-color: #ffffff; color: #1a1a1a'] * len(row)
+            
+            # Destacar clientes ativos
+            if 'Status' in display_df.columns and row['Status'] == 'Ativo':
+                styles = ['background-color: #f0f8ff; color: #1a1a1a'] * len(row)
+            elif 'Status' in display_df.columns and row['Status'] == 'Inativo':
+                styles = ['background-color: #fff8f0; color: #1a1a1a'] * len(row)
+            
+            # Colorir tipo com melhor contraste
+            if row['Tipo'] == '🏦':
+                styles[2] = 'background-color: #e3f2fd; color: #1976d2'
+            elif row['Tipo'] == '🚛':
+                styles[2] = 'background-color: #f3e5f5; color: #7b1fa2'
+            elif row['Tipo'] == '🏪':
+                styles[2] = 'background-color: #e8f5e8; color: #388e3c'
+            
+            return styles
         
         # Aplicar estilo
-        styled_df = display_df.style.applymap(color_type, subset=['Tipo'])
+        styled_df = display_df.style.apply(highlight_row, axis=1)
         
         # Exibir tabela com configurações otimizadas
         st.dataframe(
             styled_df,
             use_container_width=True,
             hide_index=True,
-            height=400  # Altura fixa para melhor visualização
+            height=400
         )
         
-        # Resumo da tabela
-        st.caption(f"📊 **{len(filtered_df)} clientes** encontrados")
+        # Resumo da tabela com informações extras
+        st.caption(f"📊 **{len(filtered_df)} clientes** encontrados com os filtros aplicados")
         
-        # Estatísticas por tipo
+        # Estatísticas detalhadas
+        if not all_loans.empty:
+            st.markdown("#### 📈 Estatísticas Detalhadas")
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                active_clients = len(display_df[display_df.get('Status', '') == 'Ativo'])
+                st.metric("👥 Clientes Ativos", active_clients)
+            
+            with col2:
+                total_loans = display_df['Empréstimos'].sum() if 'Empréstimos' in display_df.columns else 0
+                st.metric("📊 Total Empréstimos", total_loans)
+            
+            with col3:
+                if 'Valor Total' in display_df.columns:
+                    total_value = sum([float(x.replace('R$ ', '').replace('.', '').replace(',', '.')) for x in display_df['Valor Total'] if x != '-'])
+                    st.metric("💰 Valor Total", f"R$ {total_value:,.2f}")
+                else:
+                    st.metric("💰 Valor Total", "R$ 0,00")
+            
+            with col4:
+                avg_loans = display_df['Empréstimos'].mean() if 'Empréstimos' in display_df.columns else 0
+                st.metric("📊 Média Empréstimos", f"{avg_loans:.1f}")
+        
+        # Distribuição por tipo
+        st.markdown("#### 📊 Distribuição por Tipo")
         type_stats = filtered_df['tipo'].value_counts()
         if not type_stats.empty:
             col1, col2, col3 = st.columns(3)
@@ -2625,7 +2598,6 @@ def main():
                 "🏦 Empréstimos Gerais", 
                 "🚛 Motoristas", 
                 "🏪 Comerciantes",
-                "➕ Novo Empréstimo", 
                 "👥 Gestão de Clientes",
                 "📊 Importar Dados",
                 "🆘 Suporte",
@@ -2637,8 +2609,7 @@ def main():
                 "🏦 Empréstimos Gerais", 
                 "🚛 Motoristas", 
                 "🏪 Comerciantes",
-                "🆘 Suporte",
-                "➕ Novo Empréstimo"
+                "🆘 Suporte"
             ]
         
         selected_page = st.sidebar.radio("Navegação", pages)
@@ -2654,23 +2625,6 @@ def main():
             loans_detail_page('motoristas')
         elif selected_page == "🏪 Comerciantes":
             loans_detail_page('comerciantes')
-        elif selected_page == "➕ Novo Empréstimo":
-            # Submenu para escolher tipo de empréstimo
-            st.sidebar.markdown("---")
-            st.sidebar.subheader("Tipo de Empréstimo")
-            loan_type = st.sidebar.radio(
-                "Escolha o tipo:",
-                ["🏦 Clientes", "🚛 Motorista", "🏪 Comerciante"],
-                key="loan_type_selector"
-            )
-            
-            type_map = {
-                "🏦 Clientes": "emprestimos",
-                "🚛 Motorista": "motoristas", 
-                "🏪 Comerciante": "comerciantes"
-            }
-            
-            add_loan_page(type_map[loan_type])
         elif selected_page == "👥 Gestão de Clientes" and st.session_state.user_role == "admin":
             clients_management_page()
         elif selected_page == "📊 Importar Dados" and st.session_state.user_role == "admin":

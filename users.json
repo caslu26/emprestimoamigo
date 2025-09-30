@@ -1,6 +1,6 @@
 {
   "admin": {
-    "password": "$2b$12$IV7pGk291KjXpl2VS3QpEOA7Y2BzB4a548tYKXz86tiTiLk99GG1e",
+    "password": "$2b$12$778aUyIunnl1Ulw4AJBlNOq1yPOBEGsHwowsDHpY/laUjRYiyJKqq",
     "role": "admin",
     "created_at": "2025-09-24T18:34:54.924932",
     "updated_at": "2025-09-26T19:21:07.142438"
@@ -14,5 +14,10 @@
     "password": "$2b$12$t8aAzSapuEEv5sxt5isXY.2rbiO/o6vj6q5lfzafKJY3kXjFC5S4O",
     "role": "user",
     "created_at": "2025-09-24T20:38:00.593725"
+  },
+  "superadmin": {
+    "password": "$2b$12$778aUyIunnl1Ulw4AJBlNOq1yPOBEGsHwowsDHpY/laUjRYiyJKqq",
+    "role": "admin",
+    "created_at": "2025-01-27T15:30:00.000000"
   }
 }
