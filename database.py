@@ -638,6 +638,15 @@ class Database:
     
     def add_client(self, nome: str, telefone: str, tipo: str):
         df = self._read_clients()
+        
+        # Verificar se o cliente já existe (por nome e telefone)
+        if not df.empty:
+            existing_client = df[(df['nome'].str.lower() == nome.lower()) & (df['telefone'] == telefone)]
+            if not existing_client.empty:
+                # Cliente já existe, retornar o ID existente
+                return existing_client.iloc[0]['id']
+        
+        # Cliente não existe, criar novo
         new_id = len(df) + 1 if not df.empty else 1
         now = datetime.now().isoformat()
         client = {
