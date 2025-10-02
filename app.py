@@ -2651,6 +2651,10 @@ def main():
     if 'logged_in' not in st.session_state:
         st.session_state.logged_in = False
     
+    # Verificar se user_role está definido
+    if 'user_role' not in st.session_state:
+        st.session_state.user_role = None
+    
     if not st.session_state.logged_in:
         # Verificar se está na página de reset de senha
         if st.session_state.get('show_reset_password', False):
@@ -2669,7 +2673,7 @@ def main():
     else:
         # Sidebar principal
         st.sidebar.title(f"👋 Olá, {st.session_state.username}")
-        st.sidebar.markdown(f"**Função:** {st.session_state.user_role}")
+        st.sidebar.markdown(f"**Função:** {st.session_state.user_role or 'N/A'}")
         
         if st.sidebar.button("🚪 Logout"):
             for key in list(st.session_state.keys()):
@@ -2679,7 +2683,7 @@ def main():
         st.sidebar.markdown("---")
         
         # Navegação baseada no tipo de usuário
-        if st.session_state.user_role == "admin":
+        if st.session_state.get('user_role') == "admin":
             pages = [
                 "📊 Dashboard Admin", 
                 "🏦 Empréstimos Gerais", 
@@ -2702,9 +2706,9 @@ def main():
         selected_page = st.sidebar.radio("Navegação", pages)
         
         # Renderizar página selecionada
-        if selected_page == "📊 Dashboard Admin" and st.session_state.user_role == "admin":
+        if selected_page == "📊 Dashboard Admin" and st.session_state.get('user_role') == "admin":
             admin_dashboard_page()
-        elif selected_page == "📋 Meus Empréstimos" and st.session_state.user_role != "admin":
+        elif selected_page == "📋 Meus Empréstimos" and st.session_state.get('user_role') != "admin":
             user_dashboard_page()
         elif selected_page == "🏦 Empréstimos Gerais":
             loans_detail_page('emprestimos')
@@ -2712,13 +2716,13 @@ def main():
             loans_detail_page('motoristas')
         elif selected_page == "🏪 Comerciantes":
             loans_detail_page('comerciantes')
-        elif selected_page == "👥 Gestão de Clientes" and st.session_state.user_role == "admin":
+        elif selected_page == "👥 Gestão de Clientes" and st.session_state.get('user_role') == "admin":
             clients_management_page()
-        elif selected_page == "📊 Importar Dados" and st.session_state.user_role == "admin":
+        elif selected_page == "📊 Importar Dados" and st.session_state.get('user_role') == "admin":
             data_import_page()
         elif selected_page == "🆘 Suporte":
             support_page()
-        elif selected_page == "👥 Gerenciar Permissões" and st.session_state.user_role == "admin":
+        elif selected_page == "👥 Gerenciar Permissões" and st.session_state.get('user_role') == "admin":
             admin_permissions_page()
 
 if __name__ == "__main__":
