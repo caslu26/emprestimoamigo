@@ -1526,6 +1526,15 @@ def add_loan_page(loan_type='emprestimos'):
             if not all([nome_cliente, telefone, valor_solicitado, data_pagamento, valor_total]):
                 st.error("Por favor, preencha todos os campos obrigatórios!")
             else:
+                # Verificar se já foi processado para evitar duplicação
+                form_key = f"loan_form_{loan_type}_{nome_cliente}_{telefone}_{valor_solicitado}_{valor_total}"
+                if st.session_state.get(f"processed_{form_key}", False):
+                    st.warning("⏳ Processando empréstimo...")
+                    return
+                
+                # Marcar como processado
+                st.session_state[f"processed_{form_key}"] = True
+                
                 # Calcular taxa de juros
                 if valor_solicitado > 0:
                     taxa_juros = ((valor_total - valor_solicitado) / valor_solicitado) * 100
@@ -1561,9 +1570,17 @@ def add_loan_page(loan_type='emprestimos'):
                     - 📊 **Taxa de Juros:** {taxa_juros:.1f}%
                     - 🏷️ **Tipo:** {type_names[loan_type]}
                     """)
+                    
+                    # Limpar flag de processamento
+                    if f"processed_{form_key}" in st.session_state:
+                        del st.session_state[f"processed_{form_key}"]
+                    
                     st.rerun()
                 else:
                     st.error("❌ **Erro ao cadastrar empréstimo!** Tente novamente.")
+                    # Limpar flag em caso de erro
+                    if f"processed_{form_key}" in st.session_state:
+                        del st.session_state[f"processed_{form_key}"]
 
 def clients_management_page():
     st.title("👥 Gestão de Clientes")
