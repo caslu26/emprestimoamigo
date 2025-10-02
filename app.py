@@ -1526,14 +1526,24 @@ def add_loan_page(loan_type='emprestimos'):
             if not all([nome_cliente, telefone, valor_solicitado, data_pagamento, valor_total]):
                 st.error("Por favor, preencha todos os campos obrigatórios!")
             else:
+                # Calcular taxa de juros
+                if valor_solicitado > 0:
+                    taxa_juros = ((valor_total - valor_solicitado) / valor_solicitado) * 100
+                else:
+                    taxa_juros = 0.0
+                
                 loan_data = {
                     'nome_cliente': nome_cliente,
                     'telefone': telefone,
                     'valor_solicitado': valor_solicitado,
+                    'data_emprestimo': datetime.now().date(),
                     'data_pagamento': data_pagamento,
                     'valor_com_juros': valor_total,
                     'status': 'pendente',
-                    'valor_pago': 0.0
+                    'valor_pago': 0.0,
+                    'taxa_juros': taxa_juros,
+                    'parcelas': 1,
+                    'valor_total_planilha': valor_total
                 }
                 
                 # Adicionar cliente primeiro
