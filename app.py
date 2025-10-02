@@ -1558,7 +1558,8 @@ def add_loan_page(loan_type='emprestimos'):
                 # Adicionar cliente primeiro
                 client_id = db.add_client(nome_cliente, telefone, loan_type)
                 
-                if db.add_loan(loan_data, loan_type):
+                result = db.add_loan(loan_data, loan_type)
+                if result is True:
                     st.success("🎉 **Empréstimo cadastrado com sucesso!**")
                     st.info(f"""
                     **📋 Detalhes do Empréstimo:**
@@ -1576,6 +1577,11 @@ def add_loan_page(loan_type='emprestimos'):
                         del st.session_state[f"processed_{form_key}"]
                     
                     st.rerun()
+                elif result is False:
+                    st.warning("⚠️ **Empréstimo já existe!** Um empréstimo idêntico já foi cadastrado anteriormente.")
+                    # Limpar flag em caso de duplicação
+                    if f"processed_{form_key}" in st.session_state:
+                        del st.session_state[f"processed_{form_key}"]
                 else:
                     st.error("❌ **Erro ao cadastrar empréstimo!** Tente novamente.")
                     # Limpar flag em caso de erro

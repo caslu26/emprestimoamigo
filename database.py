@@ -165,8 +165,21 @@ class Database:
     def add_loan(self, loan_data, loan_type='emprestimos'):
         df = self.get_loans(loan_type)
         
-        # Gerar ID único
-        new_id = len(df) + 1 if not df.empty else 1
+        # Verificar se já existe um empréstimo idêntico
+        if not df.empty:
+            existing_loan = df[
+                (df['nome_cliente'] == loan_data['nome_cliente']) &
+                (df['telefone'] == loan_data['telefone']) &
+                (df['valor_solicitado'] == float(loan_data['valor_solicitado'])) &
+                (df['data_pagamento'].astype(str) == str(loan_data['data_pagamento']))
+            ]
+            if not existing_loan.empty:
+                # Empréstimo idêntico já existe, não adicionar
+                return False
+        
+        # Gerar ID único baseado em timestamp para evitar duplicações
+        import time
+        new_id = int(time.time() * 1000)  # Timestamp em milissegundos
         
         # Calcular valor total com juros
         valor_solicitado = float(loan_data['valor_solicitado'])
