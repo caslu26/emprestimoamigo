@@ -1550,10 +1550,20 @@ def add_loan_page(loan_type='emprestimos'):
                 client_id = db.add_client(nome_cliente, telefone, loan_type)
                 
                 if db.add_loan(loan_data, loan_type):
-                    st.success(f"{type_names[loan_type]} cadastrado com sucesso!")
+                    st.success("🎉 **Empréstimo cadastrado com sucesso!**")
+                    st.info(f"""
+                    **📋 Detalhes do Empréstimo:**
+                    - 👤 **Cliente:** {nome_cliente}
+                    - 📱 **Telefone:** {telefone}
+                    - 💰 **Valor Solicitado:** R$ {valor_solicitado:,.2f}
+                    - 💵 **Total a Pagar:** R$ {valor_total:,.2f}
+                    - 📅 **Data de Pagamento:** {data_pagamento.strftime('%d/%m/%Y')}
+                    - 📊 **Taxa de Juros:** {taxa_juros:.1f}%
+                    - 🏷️ **Tipo:** {type_names[loan_type]}
+                    """)
                     st.rerun()
                 else:
-                    st.error("Erro ao cadastrar empréstimo!")
+                    st.error("❌ **Erro ao cadastrar empréstimo!** Tente novamente.")
 
 def clients_management_page():
     st.title("👥 Gestão de Clientes")
